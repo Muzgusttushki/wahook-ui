@@ -1,6 +1,6 @@
-import { Mutex } from 'async-mutex';
+import {Mutex} from 'async-mutex';
 import * as platform from 'platform';
-import { parse } from 'cookie-parse';
+import {parse} from 'cookie-parse';
 import * as url_parse from 'url-parse';
 import * as $axios from 'axios'
 
@@ -26,7 +26,6 @@ class WahookSession {
         const realese = await this.mutex.acquire();
         try {
             const cookies = parse(document.cookie);
-            console.log(url_parse(location.href, true).query, 'utm->parse')
             const utm = {
                 source: document.referrer,
                 tags: url_parse(location.href, true).query || {}
@@ -47,9 +46,11 @@ class WahookSession {
                 analytics: {
                     google: cookies['_ga'],
                     facebook: cookies['_fbp'],
-                    yandex: cookies['_ym_d']
+                    yandex: cookies['_ym_d'],
+                    vis: cookies['_vis']
                 },
 
+                url: location.href,
                 utm
             });
 
@@ -74,7 +75,9 @@ class WahookSession {
 
                 session: this.session
             });
-        } catch (error) { console.error(error) } finally {
+        } catch (error) {
+            console.error(error)
+        } finally {
             realese()
         }
     }
@@ -90,7 +93,9 @@ class WahookSession {
 
                 session: this.session
             });
-        } catch (error) { console.error(error) } finally {
+        } catch (error) {
+            console.error(error)
+        } finally {
             realese()
         }
     }
@@ -105,7 +110,9 @@ class WahookSession {
                 variant: event.detail.variant,
                 session: this.session
             });
-        } catch (error) { console.error(error) } finally {
+        } catch (error) {
+            console.error(error)
+        } finally {
             realese()
         }
     }
@@ -117,7 +124,9 @@ class WahookSession {
             await $axios.post(`${this.address}/v1/entries/analysis/widget.order`, {
                 session: this.session
             });
-        } catch (error) { console.error(error) } finally {
+        } catch (error) {
+            console.error(error)
+        } finally {
             realese()
         }
     }
@@ -151,7 +160,9 @@ class WahookSession {
             });
 
 
-        } catch (error) { console.error(error) } finally {
+        } catch (error) {
+            console.error(error)
+        } finally {
             realese()
         }
     }
@@ -162,7 +173,9 @@ class WahookSession {
             await $axios.post(`${this.address}/v1/entries/analysis/widget.payment`, {
                 session: this.session
             });
-        } catch (error) { console.error(error) } finally {
+        } catch (error) {
+            console.error(error)
+        } finally {
             realese()
         }
     }
@@ -173,16 +186,27 @@ function bootstrap() {
     let session = null;
     document.addEventListener('wahook->sheets', async function (event) {
         try {
+            let cookies = parse(document.cookie);
+            if (!cookies['_vis']) {
+                document.cookie = "_vis="
+                    .concat(Math.random().toString(36).substring(7))
+                    .concat('; expires=')
+                    .concat(new Date(Date.now() + 86400e3).toUTCString());
+            }
+
+            cookies = parse(document.cookie);
+
             const utm = {
                 source: document.referrer,
                 tags: url_parse(location.href, true).query || {}
             };
-            const cookies = parse(document.cookie);
+
             await $axios.post(`https://api.collector.weekendagency.ru/v1/entries/analysis.sheet`, {
                 analytics: {
                     google: cookies['_ga'],
                     facebook: cookies['_fbp'],
-                    yandex: cookies['_ym_d']
+                    yandex: cookies['_ym_d'],
+                    vis: cookies['_vis']
                 },
                 browser: {
                     name: platform.name,
@@ -287,4 +311,5 @@ function bootstrap() {
 
     document.dispatchEvent(new Event('wahook->sheets'));
 }
-bootstrap()
+
+bootstrap();
