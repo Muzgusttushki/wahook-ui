@@ -1,13 +1,15 @@
-import {Mutex} from 'async-mutex';
+import { Mutex } from 'async-mutex';
 import * as platform from 'platform';
-import {parse} from 'cookie-parse';
+import { parse } from 'cookie-parse';
 import * as url_parse from 'url-parse';
 import * as $axios from 'axios'
 
 class WahookSession {
-    constructor() {
+    constructor(access) {
+        if (!access) throw Error("place access key")
         this.mutex = new Mutex();
         this.address = 'https://api.collector.weekendagency.ru';
+        this.access = access;
 
         this.format = function (address) {
             const match = address.match(/(([12]\d{3}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])))()()_(([01]\d|2[0123]):([012345]\d)) ?([\s\S]*)/);
@@ -50,6 +52,7 @@ class WahookSession {
                     vis: cookies['_vis']
                 },
 
+                access: this.access,
                 url: location.href,
                 utm
             });
@@ -73,6 +76,7 @@ class WahookSession {
                     ...state
                 },
 
+                access: this.access,
                 session: this.session
             });
         } catch (error) {
@@ -91,6 +95,7 @@ class WahookSession {
                 quantity: event.detail.quantity,
                 variant: event.detail.variant,
 
+                access: this.access,
                 session: this.session
             });
         } catch (error) {
@@ -108,6 +113,8 @@ class WahookSession {
                 price: event.detail.price,
                 quantity: event.detail.quantity,
                 variant: event.detail.variant,
+
+                access: this.access,
                 session: this.session
             });
         } catch (error) {
@@ -122,6 +129,7 @@ class WahookSession {
 
         try {
             await $axios.post(`${this.address}/v1/entries/analysis/widget.order`, {
+                access: this.access,
                 session: this.session
             });
         } catch (error) {
@@ -156,6 +164,7 @@ class WahookSession {
                 buyer: event.detail.customer,
                 orderId: event.detail.payment.id,
                 payment: event.detail.payment.payment,
+                access: this.access,
                 session: this.session
             });
 
@@ -171,6 +180,7 @@ class WahookSession {
         const realese = await this.mutex.acquire();
         try {
             await $axios.post(`${this.address}/v1/entries/analysis/widget.payment`, {
+                access: this.access,
                 session: this.session
             });
         } catch (error) {
@@ -182,7 +192,9 @@ class WahookSession {
 }
 
 
-function bootstrap() {
+function WahookInner(servicesKey) {
+    if (!servicesKey) throw Error("place access key");
+
     let session = null;
     document.addEventListener('wahook->sheets', async function (event) {
         try {
@@ -220,7 +232,7 @@ function bootstrap() {
 
                 product: platform.product,
                 utm,
-
+                access: servicesKey,
 
                 source: location.href
             });
@@ -230,7 +242,7 @@ function bootstrap() {
     })
 
     document.addEventListener('wahook->init', async function (event) {
-        session = new WahookSession();
+        session = new WahookSession(servicesKey);
         await session.init(event)
     })
 
@@ -312,4 +324,4 @@ function bootstrap() {
     document.dispatchEvent(new Event('wahook->sheets'));
 }
 
-bootstrap();
+window.WahookInner = WahookInner;
